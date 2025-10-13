@@ -1,0 +1,9 @@
+mkdir package
+cd package
+pip install psycopg2-binary -t .
+zip -r ../function.zip .
+cd ..
+zip -g function.zip lambda_function.py
+
+aws lambda update-function-code --function-name YourFunctionName --zip-file fileb://function.zip
+
