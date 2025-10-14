@@ -1,26 +1,90 @@
-Here’s a clean **example of how to implement retry logic (up to 3 times)** in an **AWS Lambda function triggered by SQS**, using **Python**.
+Perfect 👍 — you want **two separate Lambda functions**:
+
+1. **Lambda A → Producer**: Sends messages to an SQS queue.
+2. **Lambda B → Consumer**: Triggered by that SQS queue, processes messages (with 3 retry logic).
+
+Below is the full working setup.
 
 ---
 
-### ✅ **Goal**
-
-When the Lambda receives a message from SQS:
-
-* Try processing it.
-* If it fails, retry up to 3 times.
-* On 3rd failure, send it to a **Dead-Letter Queue (DLQ)** or log it as failed.
-
----
-
-### **Architecture**
+## 🧩 Architecture
 
 ```
-SQS Queue → Lambda Function → Retry 3 times → DLQ (optional)
+Lambda A (Producer) ───▶ SQS Queue ───▶ Lambda B (Consumer)
+                                        │
+                                        └──▶ Retry (3 times) → DLQ (optional)
 ```
 
 ---
 
-### **Python Lambda Code**
+## ✅ 1️⃣ Lambda A — Send messages to SQS
+
+### **Code (lambda_producer.py)**
+
+```python
+import json
+import boto3
+import os
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+sqs = boto3.client('sqs')
+QUEUE_URL = os.getenv('QUEUE_URL')
+
+def lambda_handler(event, context):
+    """
+    Sends a message to the SQS queue.
+    """
+    try:
+        # Example: message content comes from event or predefined payload
+        message_body = event.get('body', 'Test message from producer')
+        
+        # Send message to SQS
+        response = sqs.send_message(
+            QueueUrl=QUEUE_URL,
+            MessageBody=message_body,
+            MessageAttributes={
+                'RetryCount': {
+                    'StringValue': '0',
+                    'DataType': 'Number'
+                }
+            }
+        )
+
+        logger.info(f"Message sent to SQS: {response['MessageId']}")
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'messageId': response['MessageId']})
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to send message: {e}")
+        return {'statusCode': 500, 'body': json.dumps('Error sending message')}
+```
+
+### **Environment Variables**
+
+* `QUEUE_URL`: your SQS queue URL (e.g. `https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue`)
+
+### **IAM Permissions**
+
+Lambda A needs:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["sqs:SendMessage"],
+  "Resource": "*"
+}
+```
+
+---
+
+## ✅ 2️⃣ Lambda B — Process messages with retry logic
+
+### **Code (lambda_consumer.py)**
 
 ```python
 import json
@@ -28,24 +92,21 @@ import boto3
 import logging
 import os
 
-# Setup logger
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 sqs = boto3.client('sqs')
-
-# Environment variable for DLQ URL (optional)
 DLQ_URL = os.getenv('DLQ_URL', None)
 
 def process_message(message_body):
     """
-    Replace this function with your actual message processing logic.
-    Raise an exception to simulate failure.
+    Replace this function with your business logic.
+    Raise an exception to simulate a processing failure.
     """
     logger.info(f"Processing message: {message_body}")
     if "fail" in message_body.lower():
         raise Exception("Simulated failure")
-    logger.info("Processing successful.")
+    logger.info("Message processed successfully.")
 
 
 def lambda_handler(event, context):
@@ -53,7 +114,6 @@ def lambda_handler(event, context):
         message_body = record['body']
         message_attributes = record.get('messageAttributes', {})
         
-        # Get retry count
         retry_count = int(message_attributes.get('RetryCount', {}).get('stringValue', '0'))
 
         try:
@@ -61,12 +121,19 @@ def lambda_handler(event, context):
 
         except Exception as e:
             retry_count += 1
-            logger.error(f"Error processing message: {e}. Retry attempt {retry_count}/3")
+            logger.error(f"Error: {e}, Retry attempt {retry_count}/3")
+
+            queue_arn = record['eventSourceARN']
+            queue_name = queue_arn.split(':')[-1]
+            region = queue_arn.split(':')[3]
+            account_id = queue_arn.split(':')[4]
+
+            # Build queue URL
+            queue_url = f"https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}"
 
             if retry_count < 3:
-                # Re-send message to SQS with updated retry count
                 sqs.send_message(
-                    QueueUrl=record['eventSourceARN'].split(':')[-1],  # same queue
+                    QueueUrl=queue_url,
                     MessageBody=message_body,
                     MessageAttributes={
                         'RetryCount': {
@@ -77,31 +144,22 @@ def lambda_handler(event, context):
                 )
                 logger.info(f"Requeued message for retry {retry_count}")
             else:
-                # Move to DLQ or log permanently failed message
                 if DLQ_URL:
-                    sqs.send_message(
-                        QueueUrl=DLQ_URL,
-                        MessageBody=message_body
-                    )
+                    sqs.send_message(QueueUrl=DLQ_URL, MessageBody=message_body)
                     logger.warning("Message sent to DLQ after 3 failed attempts")
                 else:
                     logger.warning("Message failed after 3 retries, DLQ not configured")
 
-    return {"statusCode": 200, "body": json.dumps("Processed batch")}
+    return {"statusCode": 200, "body": json.dumps("Batch processed")}
 ```
 
----
+### **Environment Variables**
 
-### **Setup Steps**
+* `DLQ_URL` (optional): your Dead Letter Queue URL.
 
-1. **Create an SQS queue** (e.g., `MainQueue`).
-2. (Optional) **Create a DLQ** (e.g., `DLQQueue`) and set its URL in Lambda environment variable:
+### **IAM Permissions**
 
-   ```
-   DLQ_URL = https://sqs.<region>.amazonaws.com/<account-id>/DLQQueue
-   ```
-3. **Attach the Lambda to the SQS queue** as a trigger.
-4. Add the following **IAM permissions** to the Lambda’s execution role:
+Lambda B needs:
 
 ```json
 {
@@ -118,38 +176,34 @@ def lambda_handler(event, context):
 
 ---
 
-### **How It Works**
+## 🚀 Example Flow
 
-* The message starts with no retry count.
-* On failure:
+1. Invoke **Lambda A** (Producer) manually or via an event:
 
-  * Lambda catches the exception.
-  * Increments `RetryCount`.
-  * Re-sends message back to SQS with that count.
-* After 3 retries, message is either sent to DLQ or logged as failed.
+   ```bash
+   aws lambda invoke --function-name LambdaA --payload '{"body":"process this"}' output.json
+   ```
+
+2. Message goes to SQS.
+
+3. **Lambda B** (Consumer) automatically triggers.
+
+4. If processing fails, message is retried up to 3 times.
+
+   * After 3rd failure → moves to DLQ (if configured).
 
 ---
 
-### 💡**Alternative (Simpler) Option**
+## 🧠 Optional Enhancement: Delayed Retries
 
-Instead of manual retries, you can also configure:
+If you want retries after a **delay** (like exponential backoff), you can use:
 
-* **SQS redrive policy** (automatically retries up to `maxReceiveCount`).
-* Then sends the message to **DLQ** — no custom retry logic needed.
-
-Example:
-
-```json
-{
-  "RedrivePolicy": {
-    "maxReceiveCount": 3,
-    "deadLetterTargetArn": "arn:aws:sqs:region:account-id:DLQQueue"
-  }
-}
+```python
+DelaySeconds = retry_count * 10  # e.g. 10s, 20s, 30s
 ```
 
-This is often simpler and AWS-native, but the above Python version gives you **custom control** (e.g., adding delays, exponential backoff, etc.).
+inside the `sqs.send_message()` call.
 
 ---
 
-Would you like me to modify this version to include **delayed retries** (e.g., 10s, 30s, 60s between attempts)?
+Would you like me to add that **delayed retry version** (10s, 30s, 60s retry intervals)?
