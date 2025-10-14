@@ -1,0 +1,51 @@
+timestamp,message
+1760461360468,"INIT_START Runtime Version: python:3.13.v63	Runtime Version ARN: arn:aws:lambda:us-east-2::runtime:6e38c6392184a42a11f69b8b07e902e6615b10d7a884c3e3cbd4d0b8a5e42c07
+"
+1760461360809,"[INFO]	2025-10-14T17:02:40.809Z		Found credentials in environment variables.
+"
+1760461360946,"START RequestId: 840c3e0b-e127-57c1-9207-5f63657a58fa Version: $LATEST
+"
+1760461360947,"[INFO]	2025-10-14T17:02:40.947Z	840c3e0b-e127-57c1-9207-5f63657a58fa	Processing message: success
+"
+1760461360947,"[INFO]	2025-10-14T17:02:40.947Z	840c3e0b-e127-57c1-9207-5f63657a58fa	Message processed successfully.
+"
+1760461360949,"END RequestId: 840c3e0b-e127-57c1-9207-5f63657a58fa
+"
+1760461360949,"REPORT RequestId: 840c3e0b-e127-57c1-9207-5f63657a58fa	Duration: 2.15 ms	Billed Duration: 477 ms	Memory Size: 128 MB	Max Memory Used: 84 MB	Init Duration: 474.17 ms	
+"
+1760461460960,"START RequestId: a06959cc-d795-585a-bb6e-38a453541909 Version: $LATEST
+"
+1760461460961,"[INFO]	2025-10-14T17:04:20.961Z	a06959cc-d795-585a-bb6e-38a453541909	Processing message: fail
+"
+1760461460961,"[ERROR]	2025-10-14T17:04:20.961Z	a06959cc-d795-585a-bb6e-38a453541909	Error: Simulated failure, Retry attempt 1/3
+"
+1760461461284,"[INFO]	2025-10-14T17:04:21.284Z	a06959cc-d795-585a-bb6e-38a453541909	Requeued message for retry 1
+"
+1760461461295,"END RequestId: a06959cc-d795-585a-bb6e-38a453541909
+"
+1760461461295,"REPORT RequestId: a06959cc-d795-585a-bb6e-38a453541909	Duration: 334.72 ms	Billed Duration: 335 ms	Memory Size: 128 MB	Max Memory Used: 86 MB	
+"
+1760461461321,"START RequestId: c3a6ee01-1767-54fb-87c1-8f6993a697b2 Version: $LATEST
+"
+1760461461321,"[INFO]	2025-10-14T17:04:21.321Z	c3a6ee01-1767-54fb-87c1-8f6993a697b2	Processing message: fail
+"
+1760461461321,"[ERROR]	2025-10-14T17:04:21.321Z	c3a6ee01-1767-54fb-87c1-8f6993a697b2	Error: Simulated failure, Retry attempt 2/3
+"
+1760461461335,"[INFO]	2025-10-14T17:04:21.335Z	c3a6ee01-1767-54fb-87c1-8f6993a697b2	Requeued message for retry 2
+"
+1760461461355,"END RequestId: c3a6ee01-1767-54fb-87c1-8f6993a697b2
+"
+1760461461355,"REPORT RequestId: c3a6ee01-1767-54fb-87c1-8f6993a697b2	Duration: 33.75 ms	Billed Duration: 34 ms	Memory Size: 128 MB	Max Memory Used: 86 MB	
+"
+1760461461385,"START RequestId: 3b77bca2-a8a3-55a0-8c6a-ddca2c626817 Version: $LATEST
+"
+1760461461385,"[INFO]	2025-10-14T17:04:21.385Z	3b77bca2-a8a3-55a0-8c6a-ddca2c626817	Processing message: fail
+"
+1760461461386,"[ERROR]	2025-10-14T17:04:21.385Z	3b77bca2-a8a3-55a0-8c6a-ddca2c626817	Error: Simulated failure, Retry attempt 3/3
+"
+1760461461386,"[WARNING]	2025-10-14T17:04:21.386Z	3b77bca2-a8a3-55a0-8c6a-ddca2c626817	Message failed after 3 retries, DLQ not configured
+"
+1760461461387,"END RequestId: 3b77bca2-a8a3-55a0-8c6a-ddca2c626817
+"
+1760461461387,"REPORT RequestId: 3b77bca2-a8a3-55a0-8c6a-ddca2c626817	Duration: 1.86 ms	Billed Duration: 2 ms	Memory Size: 128 MB	Max Memory Used: 86 MB	
+"
