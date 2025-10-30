@@ -1,5 +1,20 @@
 
 
-curl -X POST \
-  http://<jenkins-user>:<api-token>@<jenkins-url>/job/<job-name>/buildWithParameters \
+curl -X POST -u <jenkins-user>:<api-token>
+  http://<jenkins-url>/job/<job-name>/buildWithParameters \
   --data "param1=value1&param2=value2"
+
+
+JENKINS_URL="https://jenkins.example.com"
+JOB_NAME="my-job"
+AUTH="admin:11a22b33c44ddeeffgghh"
+
+# Get last build number
+BUILD_NUMBER=$(curl -s -u $AUTH $JENKINS_URL/job/$JOB_NAME/lastBuild/buildNumber)
+
+# Get build result
+curl -s -u $AUTH $JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/api/json | jq '{number, result, building}'
+
+# Get logs
+curl -s -u $AUTH $JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/consoleText
+
