@@ -1,0 +1,5 @@
+
+
+curl -X POST \
+  http://<jenkins-user>:<api-token>@<jenkins-url>/job/<job-name>/buildWithParameters \
+  --data "param1=value1&param2=value2"
