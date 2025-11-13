@@ -1,0 +1,111 @@
+Good question — injecting **custom logs into Terraform Cloud Agent container logs** (so they show up alongside the agent’s normal logs in Terraform Cloud or Docker) can be done cleanly, but it depends on how the container is deployed. Let’s go over all working options 👇
+
+---
+
+### ⚙️ Context: Terraform Cloud Agent
+
+The **Terraform Cloud Agent** runs as a container (via Helm, Docker, etc.) and writes its logs to:
+
+```
+/proc/1/fd/1  →  /dev/stdout  →  Docker logs
+```
+
+Terraform Cloud collects those logs and shows them in the workspace run UI.
+
+So, if you want **your own custom logs** (e.g., pre-plan hook logs, debug info, or agent extensions) to appear in the same stream — you just need to **write to the same stdout stream**.
+
+---
+
+## ✅ Option 1 — Write to `/proc/1/fd/1` (Recommended)
+
+Inside the agent container, use:
+
+```bash
+echo "custom: pre-plan hook started" > /proc/1/fd/1
+```
+
+Or from a script (bash, Python, etc.):
+
+**Bash:**
+
+```bash
+#!/bin/bash
+echo "[custom-hook] Starting pre-plan step..." > /proc/1/fd/1
+```
+
+**Python:**
+
+```python
+with open("/proc/1/fd/1", "w") as log:
+    log.write("[custom-hook] Pre-plan started\n")
+```
+
+✅ Works in most Linux containers
+✅ Logs appear immediately in Terraform Cloud run output
+⚠️ Requires permission to write to `/proc/1/fd/1` (if running as non-root, check permissions)
+
+---
+
+## ✅ Option 2 — Write to `/dev/stdout` (Standard Way)
+
+```bash
+echo "[custom-hook] Finished applying modules" > /dev/stdout
+```
+
+**Note:** In some Helm-deployed Terraform Agents, `/dev/stdout` may be symlinked incorrectly or sandboxed — if your logs **don’t appear**, fall back to `/proc/1/fd/1`.
+
+---
+
+## ✅ Option 3 — Inject via Wrapper Script
+
+If you control the container entrypoint, wrap the agent start command:
+
+```bash
+#!/bin/sh
+echo "[init] Terraform Agent starting..." > /proc/1/fd/1
+exec /bin/tfc-agent "$@"
+```
+
+That way, any custom initialization or health logs you print go to the same Docker log stream.
+
+---
+
+## ✅ Option 4 — Use Terraform Hooks (`before_run`, `after_run`)
+
+Terraform Cloud Agents support **pre-plan and post-plan hooks** (via `tfc-agent` hook mechanism). You can log directly from these scripts using the same method:
+
+Example:
+`/etc/tfc-agent/hooks/pre-plan.sh`
+
+```bash
+#!/bin/bash
+echo "[hook] Pre-plan running for $TFC_RUN_ID" > /proc/1/fd/1
+# Do something useful here
+```
+
+---
+
+## ❌ Common Mistakes
+
+| Issue                                         | Cause                                      | Fix                                                             |
+| --------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------- |
+| Custom logs don’t show in Terraform Cloud UI  | Writing to `/tmp/custom.log` or local file | Must write to stdout (`/proc/1/fd/1`)                           |
+| “Permission denied” writing to `/proc/1/fd/1` | Non-root agent or hardened container       | Try `/dev/stdout` or run script via `tfc-agent user`            |
+| Logs appear in Docker but not Cloud           | Terraform Cloud filters before upload      | Only logs from agent process (PID 1) stdout/stderr are captured |
+
+---
+
+## 🧩 Bonus: If You’re Running via Helm
+
+You can verify the container’s stdout redirection:
+
+```bash
+kubectl exec -it <pod-name> -- ls -l /proc/1/fd/
+kubectl logs <pod-name> -f
+```
+
+If your logs appear there, they’ll also appear in Terraform Cloud.
+
+---
+
+Would you like me to show a **ready-to-use example Helm config or Dockerfile** that automatically injects and streams your custom logs into the Terraform Agent logs?
